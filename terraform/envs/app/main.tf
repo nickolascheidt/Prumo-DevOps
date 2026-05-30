@@ -50,7 +50,8 @@ module "web" {
   image                        = local.web_image
   target_port                  = 8080
   env = {
-    API_URL = "https://${local.api_fqdn}"
+    API_URL  = "https://${local.api_fqdn}"
+    API_HOST = local.api_fqdn
   }
 }
 
