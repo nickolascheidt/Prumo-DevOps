@@ -1,8 +1,11 @@
 variable "name" { type = string }
 variable "resource_group_name" { type = string }
 variable "container_app_environment_id" { type = string }
-variable "acr_id" { type = string }
 variable "acr_login_server" { type = string }
+variable "identity_id" {
+  type        = string
+  description = "Resource ID of the user-assigned identity used for ACR pull and Key Vault access."
+}
 variable "image" {
   type        = string
   description = "Full image reference, e.g. acr.azurecr.io/saasbase-api:<sha>."

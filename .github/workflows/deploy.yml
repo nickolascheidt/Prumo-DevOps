@@ -48,16 +48,22 @@ jobs:
     needs: resolve
     runs-on: ubuntu-latest
     environment: ${{ needs.resolve.outputs.env }}
+    # Serialize deploys per environment so the image-tag commit/push cannot race.
+    concurrency:
+      group: deploy-${{ needs.resolve.outputs.env }}
+      cancel-in-progress: false
     defaults:
       run:
         working-directory: terraform/envs/app
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Update image tag file
         run: |
           set -euo pipefail
-          FILE="images.${{ needs.resolve.outputs.env }}.auto.tfvars.json"
+          FILE="images.${{ needs.resolve.outputs.env }}.tfvars.json"
           KEY="${{ needs.resolve.outputs.app }}_image_tag"
           TAG="${{ needs.resolve.outputs.tag }}"
           tmp="$(mktemp)"
@@ -67,11 +73,17 @@ jobs:
 
       - name: Commit updated tag
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add "images.${{ needs.resolve.outputs.env }}.auto.tfvars.json"
-          git commit -m "deploy(${{ needs.resolve.outputs.env }}): ${{ needs.resolve.outputs.app }}=${{ needs.resolve.outputs.tag }}" || echo "no changes"
-          git push
+          git add "images.${{ needs.resolve.outputs.env }}.tfvars.json"
+          if git diff --cached --quiet; then
+            echo "No image tag change to commit"
+          else
+            git commit -m "deploy(${{ needs.resolve.outputs.env }}): ${{ needs.resolve.outputs.app }}=${{ needs.resolve.outputs.tag }}"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
 
       - uses: hashicorp/setup-terraform@v3
         with:
@@ -83,9 +95,6 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Select image tag file
-        run: cp images.${{ needs.resolve.outputs.env }}.auto.tfvars.json images.auto.tfvars.json
 
       - name: Terraform init
         env:
@@ -103,4 +112,4 @@ jobs:
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           TF_VAR_postgres_admin_password: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
           TF_VAR_jwt_key: ${{ secrets.JWT_KEY }}
-        run: terraform apply -auto-approve -var-file=${{ needs.resolve.outputs.env }}.tfvars -input=false
+        run: terraform apply -auto-approve -var-file=${{ needs.resolve.outputs.env }}.tfvars -var-file=images.${{ needs.resolve.outputs.env }}.tfvars.json -input=false

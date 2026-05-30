@@ -40,31 +40,29 @@ module "redis" {
   location            = azurerm_resource_group.env.location
 }
 
-module "web" {
-  source                       = "../../modules/container-app"
-  name                         = local.web_app_name
-  resource_group_name          = azurerm_resource_group.env.name
-  container_app_environment_id = module.app_env.id
-  acr_id                       = data.azurerm_container_registry.acr.id
-  acr_login_server             = data.azurerm_container_registry.acr.login_server
-  image                        = local.web_image
-  target_port                  = 8080
-  env = {
-    API_URL  = "https://${local.api_fqdn}"
-    API_HOST = local.api_fqdn
-  }
+# One user-assigned identity shared by both apps. Its ACR-pull and Key Vault
+# grants are created BEFORE the container apps, so secret references resolve on
+# the first apply (a system-assigned identity would not exist yet at grant time).
+resource "azurerm_user_assigned_identity" "apps" {
+  name                = "id-saasbase-${local.suffix}"
+  resource_group_name = azurerm_resource_group.env.name
+  location            = azurerm_resource_group.env.location
+}
+
+resource "azurerm_role_assignment" "acr_pull" {
+  scope                = data.azurerm_container_registry.acr.id
+  role_definition_name = "AcrPull"
+  principal_id         = azurerm_user_assigned_identity.apps.principal_id
 }
 
 module "key_vault" {
-  source              = "../../modules/keyvault"
-  name                = "kv-saasbase-${local.suffix}"
-  resource_group_name = azurerm_resource_group.env.name
-  location            = azurerm_resource_group.env.location
-  tenant_id           = data.azurerm_client_config.current.tenant_id
-  admin_principal_id  = data.azurerm_client_config.current.object_id
-  reader_principal_ids = [
-    module.api.principal_id
-  ]
+  source               = "../../modules/keyvault"
+  name                 = "kv-saasbase-${local.suffix}"
+  resource_group_name  = azurerm_resource_group.env.name
+  location             = azurerm_resource_group.env.location
+  tenant_id            = data.azurerm_client_config.current.tenant_id
+  admin_principal_id   = data.azurerm_client_config.current.object_id
+  reader_principal_ids = [azurerm_user_assigned_identity.apps.principal_id]
   secrets = {
     "ConnectionStrings--DefaultConnection" = module.postgres.connection_string
     "ConnectionStrings--Redis"             = module.redis.connection_string
@@ -72,13 +70,38 @@ module "key_vault" {
   }
 }
 
+# Give Azure RBAC time to propagate the identity's grants before the apps,
+# which reference ACR + Key Vault, are created.
+resource "time_sleep" "rbac_propagation" {
+  depends_on      = [azurerm_role_assignment.acr_pull, module.key_vault]
+  create_duration = "60s"
+}
+
+module "web" {
+  source                       = "../../modules/container-app"
+  name                         = local.web_app_name
+  resource_group_name          = azurerm_resource_group.env.name
+  container_app_environment_id = module.app_env.id
+  acr_login_server             = data.azurerm_container_registry.acr.login_server
+  identity_id                  = azurerm_user_assigned_identity.apps.id
+  image                        = local.web_image
+  target_port                  = 8080
+  readiness_path               = "/"
+  env = {
+    API_URL  = "https://${local.api_fqdn}"
+    API_HOST = local.api_fqdn
+  }
+
+  depends_on = [time_sleep.rbac_propagation]
+}
+
 module "api" {
   source                       = "../../modules/container-app"
   name                         = local.api_app_name
   resource_group_name          = azurerm_resource_group.env.name
   container_app_environment_id = module.app_env.id
-  acr_id                       = data.azurerm_container_registry.acr.id
   acr_login_server             = data.azurerm_container_registry.acr.login_server
+  identity_id                  = azurerm_user_assigned_identity.apps.id
   image                        = local.api_image
   target_port                  = 8080
   liveness_path                = "/health/live"
@@ -95,4 +118,6 @@ module "api" {
     "ConnectionStrings__Redis"             = module.key_vault.secret_ids["ConnectionStrings--Redis"]
     "Jwt__Key"                             = module.key_vault.secret_ids["Jwt--Key"]
   }
+
+  depends_on = [time_sleep.rbac_propagation]
 }

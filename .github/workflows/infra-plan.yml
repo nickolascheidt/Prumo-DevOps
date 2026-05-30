@@ -35,9 +35,6 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Select image tag file
-        run: cp images.${{ matrix.env }}.auto.tfvars.json images.auto.tfvars.json
-
       - name: Terraform init
         env:
           ARM_USE_OIDC: "true"
@@ -57,4 +54,4 @@ jobs:
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           TF_VAR_postgres_admin_password: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
           TF_VAR_jwt_key: ${{ secrets.JWT_KEY }}
-        run: terraform plan -var-file=${{ matrix.env }}.tfvars -input=false
+        run: terraform plan -var-file=${{ matrix.env }}.tfvars -var-file=images.${{ matrix.env }}.tfvars.json -input=false

@@ -10,12 +10,13 @@ resource "azurerm_container_app" "this" {
   revision_mode                = "Single"
 
   identity {
-    type = "SystemAssigned"
+    type         = "UserAssigned"
+    identity_ids = [var.identity_id]
   }
 
   registry {
     server   = var.acr_login_server
-    identity = "System"
+    identity = var.identity_id
   }
 
   dynamic "secret" {
@@ -23,7 +24,7 @@ resource "azurerm_container_app" "this" {
     content {
       name                = local.secret_names[secret.key]
       key_vault_secret_id = secret.value
-      identity            = "System"
+      identity            = var.identity_id
     }
   }
 
@@ -82,11 +83,4 @@ resource "azurerm_container_app" "this" {
       }
     }
   }
-}
-
-# Grant this app's managed identity pull rights on the ACR.
-resource "azurerm_role_assignment" "acr_pull" {
-  scope                = var.acr_id
-  role_definition_name = "AcrPull"
-  principal_id         = azurerm_container_app.this.identity[0].principal_id
 }
