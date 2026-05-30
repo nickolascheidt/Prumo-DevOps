@@ -1,0 +1,47 @@
+variable "name" { type = string }
+variable "resource_group_name" { type = string }
+variable "container_app_environment_id" { type = string }
+variable "acr_id" { type = string }
+variable "acr_login_server" { type = string }
+variable "image" {
+  type        = string
+  description = "Full image reference, e.g. acr.azurecr.io/saasbase-api:<sha>."
+}
+variable "target_port" { type = number }
+variable "cpu" {
+  type    = number
+  default = 0.5
+}
+variable "memory" {
+  type    = string
+  default = "1Gi"
+}
+variable "min_replicas" {
+  type    = number
+  default = 1
+}
+variable "max_replicas" {
+  type    = number
+  default = 3
+}
+
+variable "env" {
+  type        = map(string)
+  default     = {}
+  description = "Plain (non-secret) environment variables."
+}
+
+variable "secret_env" {
+  type        = map(string)
+  default     = {}
+  description = "Env var name => Key Vault versionless secret ID. Surfaced as Container App secrets."
+}
+
+variable "liveness_path" {
+  type    = string
+  default = ""
+}
+variable "readiness_path" {
+  type    = string
+  default = ""
+}
