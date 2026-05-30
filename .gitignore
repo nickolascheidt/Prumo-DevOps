@@ -1,0 +1,12 @@
+# Terraform working dirs and state
+**/.terraform/
+*.tfplan
+*.tfstate
+*.tfstate.*
+crash.log
+
+# Module-level lock files are not committed (root configs pin versions instead)
+terraform/modules/**/.terraform.lock.hcl
+
+# Active per-deploy image tag file (selected from images.<env>.auto.tfvars.json at deploy time)
+terraform/envs/app/images.auto.tfvars.json
