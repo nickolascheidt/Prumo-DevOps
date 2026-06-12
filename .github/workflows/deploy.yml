@@ -1,0 +1,115 @@
+name: deploy
+
+on:
+  repository_dispatch:
+    types: [deploy]
+  workflow_dispatch:
+    inputs:
+      env:
+        description: "Target environment"
+        type: choice
+        options: [dev, prod]
+        required: true
+      app:
+        description: "Which app image to update"
+        type: choice
+        options: [api, web]
+        required: true
+      image_tag:
+        description: "Image tag (app repo commit SHA)"
+        type: string
+        required: true
+
+permissions:
+  id-token: write
+  contents: write
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      env: ${{ steps.r.outputs.env }}
+      app: ${{ steps.r.outputs.app }}
+      tag: ${{ steps.r.outputs.tag }}
+    steps:
+      - id: r
+        run: |
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            echo "env=dev" >> "$GITHUB_OUTPUT"
+            echo "app=${{ github.event.client_payload.app }}" >> "$GITHUB_OUTPUT"
+            echo "tag=${{ github.event.client_payload.image_tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "env=${{ inputs.env }}" >> "$GITHUB_OUTPUT"
+            echo "app=${{ inputs.app }}" >> "$GITHUB_OUTPUT"
+            echo "tag=${{ inputs.image_tag }}" >> "$GITHUB_OUTPUT"
+          fi
+
+  deploy:
+    needs: resolve
+    runs-on: ubuntu-latest
+    environment: ${{ needs.resolve.outputs.env }}
+    # Serialize deploys per environment so the image-tag commit/push cannot race.
+    concurrency:
+      group: deploy-${{ needs.resolve.outputs.env }}
+      cancel-in-progress: false
+    defaults:
+      run:
+        working-directory: terraform/envs/app
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Update image tag file
+        run: |
+          set -euo pipefail
+          FILE="images.${{ needs.resolve.outputs.env }}.tfvars.json"
+          KEY="${{ needs.resolve.outputs.app }}_image_tag"
+          TAG="${{ needs.resolve.outputs.tag }}"
+          tmp="$(mktemp)"
+          jq --arg k "$KEY" --arg v "$TAG" '.[$k] = $v' "$FILE" > "$tmp"
+          mv "$tmp" "$FILE"
+          cat "$FILE"
+
+      - name: Commit updated tag
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "images.${{ needs.resolve.outputs.env }}.tfvars.json"
+          if git diff --cached --quiet; then
+            echo "No image tag change to commit"
+          else
+            git commit -m "deploy(${{ needs.resolve.outputs.env }}): ${{ needs.resolve.outputs.app }}=${{ needs.resolve.outputs.tag }}"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Terraform init
+        env:
+          ARM_USE_OIDC: "true"
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: terraform init -backend-config=backends/${{ needs.resolve.outputs.env }}.hcl
+
+      - name: Terraform apply
+        env:
+          ARM_USE_OIDC: "true"
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          TF_VAR_postgres_admin_password: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
+          TF_VAR_jwt_key: ${{ secrets.JWT_KEY }}
+        run: terraform apply -auto-approve -var-file=${{ needs.resolve.outputs.env }}.tfvars -var-file=images.${{ needs.resolve.outputs.env }}.tfvars.json -input=false

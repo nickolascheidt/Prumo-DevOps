@@ -1,0 +1,9 @@
+# Terraform working dirs and state
+**/.terraform/
+*.tfplan
+*.tfstate
+*.tfstate.*
+crash.log
+
+# Module-level lock files are not committed (root configs pin versions instead)
+terraform/modules/**/.terraform.lock.hcl

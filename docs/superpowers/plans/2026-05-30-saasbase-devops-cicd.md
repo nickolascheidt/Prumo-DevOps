@@ -1802,3 +1802,22 @@ After all tasks and the one-time bootstrap (RUNBOOK §1):
 - **Frontend** verified: `:browser` builder → `dist/saas-baseplatform-erp` (no `/browser`); `ApiService` hardcoding and missing `fileReplacements` are both fixed in Task 17.
 - **Cross-reference cycle** between API and web Container Apps is broken by deriving both FQDNs from the Container Apps environment `default_domain` (Task 10, Steps 3a–3b).
 - **Type/name consistency:** image repos `saasbase-api` / `saasbase-web`, env var/secret names, and module output names are consistent across Terraform, workflows, and the contract doc.
+
+---
+
+## Implementation notes (deviations applied during execution)
+
+Made while implementing/validating and after an independent code review. The shipped code reflects these; the task bodies above show the original plan.
+
+1. **Key Vault `for_each`** uses `nonsensitive(toset(keys(var.secrets)))` (not `var.secrets`) — Terraform rejects a sensitive value as a `for_each` argument. Secret names are non-sensitive; values stay sensitive.
+2. **Container Apps identity** is a **user-assigned identity** (`azurerm_user_assigned_identity.apps`), not system-assigned. Its `AcrPull` + `Key Vault Secrets User` grants are created before the apps, with a `time_sleep` for RBAC propagation, so the first `terraform apply` resolves the Key Vault secret references. The container-app module takes `identity_id` instead of `acr_id`, and no longer emits `principal_id` or creates its own role assignment.
+3. **Per-env image tag files** are `images.dev.tfvars.json` / `images.prod.tfvars.json` (NOT `*.auto.tfvars.json`), passed via `-var-file`. Auto-loaded `*.auto.tfvars.json` files all load together regardless of env, letting prod tags override dev. No `images.auto.tfvars.json` copy step.
+4. **`deploy.yml`** adds a per-env `concurrency` group, checks out `ref: main`, uses an explicit empty-diff check, and `git pull --rebase` + `git push origin HEAD:main` to avoid concurrent-dispatch races.
+5. **nginx template** uses a variable upstream (`set $upstream ${API_URL}; proxy_pass $upstream;`) with a `resolver` (request-time DNS so the container starts before the API is resolvable), plus `proxy_ssl_server_name on` and `Host ${API_HOST}` for Azure Container Apps HTTPS/Host routing. The web container receives both `API_URL` and `API_HOST`.
+6. **Web container** has a readiness probe on `/`.
+7. **`.gitattributes`** (LF enforcement) and a top-level **`.gitignore`** (ignoring `**/.terraform/`, state, module lock files) were added; only the two root `.terraform.lock.hcl` files are tracked.
+
+### Known fast-follows (non-blocking)
+- Backend `Dockerfile` copies all source before `dotnet restore`, so the restore layer is not cached across source-only changes (CI speed only).
+- App-repo workflows have no path filter / `concurrency` guard.
+- First `terraform apply` may still need a single re-run if Azure RBAC propagation exceeds the 60s wait.
