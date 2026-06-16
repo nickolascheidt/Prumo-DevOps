@@ -1,15 +1,21 @@
 variable "name" { type = string }
 variable "resource_group_name" { type = string }
-variable "location" { type = string }
-variable "capacity" {
+variable "container_app_environment_id" {
+  type        = string
+  description = "ID of the Container Apps environment the Redis sidecar runs in."
+}
+
+variable "image" {
+  type    = string
+  default = "redis:7-alpine"
+}
+
+variable "cpu" {
   type    = number
-  default = 0
+  default = 0.25
 }
-variable "family" {
+
+variable "memory" {
   type    = string
-  default = "C"
-}
-variable "sku_name" {
-  type    = string
-  default = "Basic"
+  default = "0.5Gi"
 }

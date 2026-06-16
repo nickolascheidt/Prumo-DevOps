@@ -34,10 +34,10 @@ module "postgres" {
 }
 
 module "redis" {
-  source              = "../../modules/redis"
-  name                = "redis-saasbase-${local.suffix}"
-  resource_group_name = azurerm_resource_group.env.name
-  location            = azurerm_resource_group.env.location
+  source                       = "../../modules/redis"
+  name                         = "redis-saasbase-${local.suffix}"
+  resource_group_name          = azurerm_resource_group.env.name
+  container_app_environment_id = module.app_env.id
 }
 
 # One user-assigned identity shared by both apps. Its ACR-pull and Key Vault
@@ -119,5 +119,5 @@ module "api" {
     "Jwt__Key"                             = module.key_vault.secret_ids["Jwt--Key"]
   }
 
-  depends_on = [time_sleep.rbac_propagation]
+  depends_on = [time_sleep.rbac_propagation, module.redis]
 }
