@@ -15,7 +15,9 @@ resource "azurerm_role_assignment" "admin" {
 }
 
 resource "azurerm_role_assignment" "readers" {
-  for_each             = toset(var.reader_principal_ids)
+  # Keyed by a static label so for_each is determinable at plan time even though
+  # the principal IDs (managed identities) are computed during the same apply.
+  for_each             = var.reader_principal_ids
   scope                = azurerm_key_vault.this.id
   role_definition_name = "Key Vault Secrets User"
   principal_id         = each.value

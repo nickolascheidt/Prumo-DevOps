@@ -10,9 +10,9 @@ variable "secrets" {
 }
 
 variable "reader_principal_ids" {
-  type        = list(string)
-  default     = []
-  description = "Object IDs granted Key Vault Secrets User (the Container Apps' managed identities)."
+  type        = map(string)
+  default     = {}
+  description = "Static label => Object ID granted Key Vault Secrets User (the Container Apps' managed identities). Keys must be known at plan time; values may be computed at apply time."
 }
 
 variable "admin_principal_id" {

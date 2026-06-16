@@ -62,7 +62,7 @@ module "key_vault" {
   location             = azurerm_resource_group.env.location
   tenant_id            = data.azurerm_client_config.current.tenant_id
   admin_principal_id   = data.azurerm_client_config.current.object_id
-  reader_principal_ids = [azurerm_user_assigned_identity.apps.principal_id]
+  reader_principal_ids = { apps = azurerm_user_assigned_identity.apps.principal_id }
   secrets = {
     "ConnectionStrings--DefaultConnection" = module.postgres.connection_string
     "ConnectionStrings--Redis"             = module.redis.connection_string
