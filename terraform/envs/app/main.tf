@@ -107,8 +107,12 @@ module "api" {
   liveness_path                = "/health/live"
   readiness_path               = "/health/ready"
   env = {
-    ASPNETCORE_ENVIRONMENT    = "Production"
-    ASPNETCORE_HTTP_PORTS     = "8080"
+    ASPNETCORE_ENVIRONMENT = "Production"
+    ASPNETCORE_HTTP_PORTS  = "8080"
+    # appsettings.Production.json pins AllowedHosts to a placeholder domain, which
+    # makes ASP.NET Core host-filtering return 400 to the Container Apps health
+    # probes (they call the pod IP). Override here; TLS terminates at ingress.
+    AllowedHosts              = "*"
     "Jwt__Issuer"             = var.jwt_issuer
     "Jwt__Audience"           = var.jwt_audience
     "Cors__AllowedOrigins__0" = "https://${local.web_fqdn}"
