@@ -1,3 +1,7 @@
+# NOT WIRED INTO ANY ENVIRONMENT TODAY. Kept because it works and was not trivial to get
+# right (see below); re-reference it from envs/app/main.tf when there is a real cache
+# consumer to justify the running cost.
+#
 # Azure retired new "Azure Cache for Redis" (classic) creation, and Azure Managed
 # Redis has no free tier. For the dev environment we run Redis as a small,
 # always-on Container App with INTERNAL TCP ingress, reachable by the API at

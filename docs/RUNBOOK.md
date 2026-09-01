@@ -31,5 +31,4 @@ prior revision; traffic only shifts after the new revision is healthy.
 
 ## Connection-string key reference (must match the API)
 - `ConnectionStrings__DefaultConnection` (Npgsql)
-- `ConnectionStrings__Redis` (StackExchange.Redis)
 - `Jwt__Key`, `Jwt__Issuer`, `Jwt__Audience`

@@ -20,8 +20,13 @@ variable "memory" {
   default = "1Gi"
 }
 variable "min_replicas" {
-  type    = number
-  default = 1
+  type        = number
+  default     = 0
+  description = <<-EOT
+    0 lets the app scale to zero when idle, which is what keeps a parked environment near
+    free -- Container Apps bills per replica-second. The cost is a cold start on the first
+    request after idling. Set it to 1 for an environment that must answer instantly.
+  EOT
 }
 variable "max_replicas" {
   type    = number

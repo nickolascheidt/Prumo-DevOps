@@ -33,12 +33,10 @@ module "postgres" {
   administrator_password = var.postgres_admin_password
 }
 
-module "redis" {
-  source                       = "../../modules/redis"
-  name                         = "redis-saasbase-${local.suffix}"
-  resource_group_name          = azurerm_resource_group.env.name
-  container_app_environment_id = module.app_env.id
-}
+# No cache is wired. The API had a Redis-backed ICacheService that nothing ever injected,
+# so the cache app was paying for a component with no consumers; both were removed. The
+# module in ../../modules/redis is kept, working and unreferenced, for when caching earns
+# its place -- re-add this block and the two lines below that carry its connection string.
 
 # One user-assigned identity shared by both apps. Its ACR-pull and Key Vault
 # grants are created BEFORE the container apps, so secret references resolve on
@@ -65,7 +63,6 @@ module "key_vault" {
   reader_principal_ids = { apps = azurerm_user_assigned_identity.apps.principal_id }
   secrets = {
     "ConnectionStrings--DefaultConnection" = module.postgres.connection_string
-    "ConnectionStrings--Redis"             = module.redis.connection_string
     "Jwt--Key"                             = var.jwt_key
   }
 }
@@ -119,9 +116,8 @@ module "api" {
   }
   secret_env = {
     "ConnectionStrings__DefaultConnection" = module.key_vault.secret_ids["ConnectionStrings--DefaultConnection"]
-    "ConnectionStrings__Redis"             = module.key_vault.secret_ids["ConnectionStrings--Redis"]
     "Jwt__Key"                             = module.key_vault.secret_ids["Jwt--Key"]
   }
 
-  depends_on = [time_sleep.rbac_propagation, module.redis]
+  depends_on = [time_sleep.rbac_propagation]
 }
