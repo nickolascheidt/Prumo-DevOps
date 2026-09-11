@@ -1,0 +1,5 @@
+{$DOMAIN} {
+	# O Caddy tira e renova o certificado sozinho pelo desafio HTTP do Let's
+	# Encrypt, que é o motivo de a porta 80 estar aberta.
+	reverse_proxy web:80
+}
