@@ -12,3 +12,8 @@ output "dead_letter_queue_url" {
   description = "Vai para Sqs__DeadLetterQueueUrl quando o worker existir."
   value       = aws_sqs_queue.notifications_dlq.url
 }
+
+output "github_deploy_role_arn" {
+  description = "Vai para o secret AWS_DEPLOY_ROLE_ARN nos três repos."
+  value       = aws_iam_role.github_deploy.arn
+}
