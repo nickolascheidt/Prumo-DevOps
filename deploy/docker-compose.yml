@@ -1,0 +1,77 @@
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Preserva o certificado entre subidas. Destruir este volume e reaplicar
+      # muitas vezes no mesmo dia esbarra no limite de emissão do Let's Encrypt.
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - web
+
+  web:
+    image: ${ECR_REGISTRY}/prumo-web:${WEB_TAG}
+    restart: unless-stopped
+    environment:
+      # Lido pelo envsubst do entrypoint do nginx, no `proxy_pass ${API_URL};`.
+      API_URL: http://api:8080
+
+  api:
+    image: ${ECR_REGISTRY}/prumo-api:${API_TAG}
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: 8080
+      AllowedHosts: ${DOMAIN}
+      App__BaseUrl: https://${DOMAIN}
+      Cors__AllowedOrigins__0: https://${DOMAIN}
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=SaaSBasePlatformDb;Username=prumo_app;Password=${PRUMO_APP_PASSWORD}
+      ConnectionStrings__MigratorConnection: Host=postgres;Port=5432;Database=SaaSBasePlatformDb;Username=prumo_migrator;Password=${PRUMO_MIGRATOR_PASSWORD}
+      # Ligado nesta fatia porque não há passo de migration no deploy ainda.
+      # Ver a spec: é a peça a substituir quando o compute mudar.
+      Database__MigrateOnStartup: "true"
+      Notifications__Provider: Sqs
+      Sqs__QueueUrl: ${SQS_QUEUE_URL}
+      Sqs__Region: ${AWS_REGION}
+      # A credencial do SDK. No Lightsail não há instance profile: estas duas vêm
+      # do .env, e são a chave escopada do usuário prumo-dev-box (Task 5).
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      # Sqs__ServiceUrl fica AUSENTE de propósito. Preenchida, ela apontaria o SDK
+      # para o emulador — e a guarda de NotificationConfiguration recusa o startup.
+      Jwt__Key: ${JWT_KEY}
+      Seed__AdminPassword: ${SEED_ADMIN_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: SaaSBasePlatformDb
+      PRUMO_MIGRATOR_PASSWORD: ${PRUMO_MIGRATOR_PASSWORD}
+      PRUMO_APP_PASSWORD: ${PRUMO_APP_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      # Só roda em volume novo, igual ao local.
+      - ./db/roles.sql:/docker-entrypoint-initdb.d/10-roles.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres-data:
+  caddy-data:
+  caddy-config:
