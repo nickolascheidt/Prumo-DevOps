@@ -39,6 +39,17 @@ variable "availability_zone" {
   default     = "sa-east-1a"
 }
 
+variable "ssh_allowed_cidr" {
+  description = "De onde o SSH é aceito, ex.: 189.10.20.30/32. Descubra o seu com `curl -s ifconfig.me`. Deixar 0.0.0.0/0 expõe a porta 22 ao mundo — é a diferença de segurança mais visível entre este desenho e o de EC2, que não tinha porta 22 nenhuma. Sem default de propósito: o Terraform pergunta em vez de abrir demais no silêncio."
+  type        = string
+}
+
+variable "ssh_public_key_path" {
+  description = "Metade pública da chave gerada na Task 5, Passo 1. O `~` é expandido com pathexpand: o `file()` sozinho NÃO expande, e procuraria um diretório chamado `~`."
+  type        = string
+  default     = "~/.ssh/prumo-dev.pub"
+}
+
 variable "github_repos" {
   description = "Repos que podem assumir a role de deploy por OIDC, no formato owner/repo."
   type        = list(string)
