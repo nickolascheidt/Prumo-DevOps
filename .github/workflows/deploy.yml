@@ -1,8 +1,13 @@
 name: deploy
 
+# ÓRFÃO desde a virada para AWS (Task 10 do plano do piloto). Este workflow faz
+# deploy na AZURE. O `repository_dispatch` saiu porque os repos app e angular não
+# despacham mais nada — e um gatilho automático apontando para a Azure é
+# exatamente o que não se quer deixar de pé enquanto a árvore azurerm dorme.
+#
+# Fica só no manual, como documentação viva do que a Azure fazia, até a decisão
+# sobre derrubar o rg-saasbase-tfstate. O deploy do piloto é deploy/deploy.sh.
 on:
-  repository_dispatch:
-    types: [deploy]
   workflow_dispatch:
     inputs:
       env:
