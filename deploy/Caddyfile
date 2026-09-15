@@ -1,5 +1,18 @@
 {$DOMAIN} {
 	# O Caddy tira e renova o certificado sozinho pelo desafio HTTP do Let's
 	# Encrypt, que é o motivo de a porta 80 estar aberta.
-	reverse_proxy web:80
+
+	# HSTS o Caddy já emite. Estes ele não emite sozinho: impedem o SPA de ser
+	# embutido em iframe de terceiro (clickjacking), o browser de "adivinhar"
+	# tipo de conteúdo, e a URL de vazar inteira no Referer.
+	header {
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	# O nginx do Angular escuta em 8080 (nginx/default.conf.template e Dockerfile
+	# do repo Angular), não em 80. Apontar para 80 dava 502 em tudo.
+	reverse_proxy web:8080
 }

@@ -20,8 +20,13 @@ services:
     image: ${ECR_REGISTRY}/prumo-web:${WEB_TAG}
     restart: unless-stopped
     environment:
-      # Lido pelo envsubst do entrypoint do nginx, no `proxy_pass ${API_URL};`.
+      # Lidos pelo envsubst do entrypoint do nginx, no `proxy_pass ${API_URL};` e
+      # no `proxy_set_header Host ${API_HOST};`. O segundo precisa ser o domínio
+      # público: a API roda com AllowedHosts=${DOMAIN} (abaixo) e o host filtering
+      # do ASP.NET devolve 400 para qualquer outro Host. Sem ele, valia o default
+      # da imagem (localhost:5201) e toda chamada à API era recusada.
       API_URL: http://api:8080
+      API_HOST: ${DOMAIN}
 
   api:
     image: ${ECR_REGISTRY}/prumo-api:${API_TAG}
