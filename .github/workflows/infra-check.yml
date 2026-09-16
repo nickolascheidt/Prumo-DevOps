@@ -1,0 +1,43 @@
+name: infra-check
+
+# Substitui o `infra-plan` da era Azure, que fazia `az login` por OIDC e rodava
+# `terraform plan` contra `terraform/envs/app` — árvore removida em 2026-09-16.
+#
+# Este aqui **não tem credencial e não precisa de conta**: `-backend=false` pula a
+# inicialização do backend S3, então o job valida sintaxe, tipos e o schema do provider
+# sem nunca falar com a AWS. É exatamente a verificação offline que vinha sendo feita à
+# mão a cada task do piloto.
+#
+# Um `plan` de verdade continua sendo trabalho de máquina com credencial, e só passa a
+# caber aqui quando a role de OIDC do `oidc.tf` existir na conta (Task 4 aplicada).
+
+on:
+  pull_request:
+    paths:
+      - "terraform/**"
+      - ".github/workflows/infra-check.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          # O `use_lockfile` do backend S3 exige >= 1.10; ver terraform/aws/dev/versions.tf.
+          terraform_version: "1.15.5"
+
+      - name: Terraform fmt
+        run: terraform fmt -check -recursive terraform/
+
+      - name: Terraform init (sem backend)
+        working-directory: terraform/aws/dev
+        run: terraform init -backend=false -input=false
+
+      - name: Terraform validate
+        working-directory: terraform/aws/dev
+        run: terraform validate
