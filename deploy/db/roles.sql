@@ -1,4 +1,4 @@
--- CÓPIA de db/roles.sql do repo SaaSBasePlatform. As duas precisam andar juntas:
+-- CÓPIA de db/roles.sql do repo Prumo. As duas precisam andar juntas:
 -- se lá mudar, aqui muda. Não edite este arquivo; edite o de lá e copie de novo.
 -- Separa quem faz DDL de quem roda a aplicação (item 11 do MVP-BACKLOG).
 --

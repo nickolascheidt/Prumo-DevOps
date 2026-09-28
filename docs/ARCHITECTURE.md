@@ -1,8 +1,5 @@
 # Arquitetura
 
-Desenho completo em
-`SaaSBasePlatform/docs/superpowers/specs/2026-09-07-aws-dev-environment-design.md`.
-
 ## A forma
 
 **Uma máquina só.** Uma instância Lightsail de 2 GB em `sa-east-1` roda os quatro
@@ -45,6 +42,6 @@ ainda não existe** — criá-lo é o Passo 1 da Task 1.
 ## Antes disto
 
 A stack viveu na Azure (Container Apps, ACR, Key Vault, PostgreSQL Flexible Server) e
-funcionou ponta a ponta. A árvore `azurerm` saiu do repo em 2026-09-16; o desenho daquela
-época está em `docs/superpowers/specs/2026-05-30-saasbase-devops-cicd-design.md`. O
+funcionou ponta a ponta. A árvore `azurerm` saiu do repo em 2026-09-16; o código daquela
+época continua no histórico do git. O
 `rg-saasbase-tfstate` continua de pé na Azure, agora sem código que o gerencie.

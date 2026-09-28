@@ -6,9 +6,6 @@
 #   Task 1, Passo 7  — `terraform init` de verdade, contra o S3
 #   Task 2, Passo 4  — apply: ECR e a role de deploy por OIDC (Task 4)
 #
-# Plano completo: docs/superpowers/plans/2026-09-07-aws-dev-environment.md,
-# no repo da aplicação.
-#
 # PRÉ-REQUISITO: a Task 0 inteira. Este script RECUSA rodar com credencial de
 # raiz — é justamente o que a Task 0 existe para evitar.
 #
@@ -184,7 +181,7 @@ terraform output
 cat <<'NEXT'
 
   1. Ponha o github_deploy_role_arn acima como o secret AWS_DEPLOY_ROLE_ARN nos
-     tres repos (SaaSBasePlatform, -Angular, -DevOps). Task 4.
+     tres repos (Prumo, Prumo-Angular, Prumo-DevOps). Task 4.
 
   2. Task 3 — gere os segredos e guarde no gerenciador de senhas ANTES de
      qualquer outra coisa:

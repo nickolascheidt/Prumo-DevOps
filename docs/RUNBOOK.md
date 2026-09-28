@@ -1,9 +1,6 @@
 # Runbook
 
-> **Nada disto foi executado ainda.** Nenhum recurso existe na AWS, o custo é US$ 0,00, e
-> o `NEXT_SESSION.md` (untracked) é quem guarda o estado corrente. As 13 tasks numeradas
-> vivem no plano, em
-> `SaaSBasePlatform/docs/superpowers/plans/2026-09-07-aws-dev-environment.md`.
+> **Nada disto foi executado ainda.** Nenhum recurso existe na AWS, o custo é US$ 0,00.
 
 ## O portão: Task 0
 

@@ -1,4 +1,4 @@
-# SaaSBasePlatform-DevOps
+# Prumo-DevOps
 
 Infraestrutura e deploy do Prumo: Terraform para a AWS e GitHub Actions para construir as
 imagens da API .NET e da SPA Angular.
@@ -9,11 +9,8 @@ diário, por ~US$ 14/mês. Não é ambiente descartável; é a versão que vai �
 cliente.
 
 **Nada está aplicado. Nenhum recurso existe na AWS. Custo US$ 0,00.** O que falta é
-trabalho de conta, não de código, e está listado no `NEXT_SESSION.md` (untracked) e no
-plano, no repo da aplicação.
+trabalho de conta, não de código.
 
-- Desenho: `SaaSBasePlatform/docs/superpowers/specs/2026-09-07-aws-dev-environment-design.md`
-- Plano, 13 tasks: `SaaSBasePlatform/docs/superpowers/plans/2026-09-07-aws-dev-environment.md`
 - Arquitetura: `docs/ARCHITECTURE.md`
 - Contrato com os repos de aplicação: `docs/CONTRACT.md`
 - Operação: `docs/RUNBOOK.md`
@@ -30,8 +27,8 @@ plano, no repo da aplicação.
 
 A infraestrutura viveu na Azure — Container Apps, ACR, Key Vault, PostgreSQL Flexible
 Server — e funcionou ponta a ponta antes de ser derrubada para US$ 0. **A árvore `azurerm`
-foi removida em 2026-09-16**, junto com os workflows e os scripts de `az`. O desenho e o
-plano daquela época continuam em `docs/superpowers/`, como registro.
+foi removida em 2026-09-16**, junto com os workflows e os scripts de `az`. O código daquela
+época continua no histórico do git.
 
 O `rg-saasbase-tfstate` **ainda existe na Azure**, custando centavos, e agora sem código
 que o gerencie: derrubar é trabalho manual no portal, quando quiser.

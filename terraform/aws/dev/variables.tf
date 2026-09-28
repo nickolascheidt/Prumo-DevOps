@@ -54,8 +54,8 @@ variable "github_repos" {
   description = "Repos que podem assumir a role de deploy por OIDC, no formato owner/repo."
   type        = list(string)
   default = [
-    "nickolascheidt/SaaSBasePlatform",
-    "nickolascheidt/SaaSBasePlatform-Angular",
-    "nickolascheidt/SaaSBasePlatform-DevOps",
+    "nickolascheidt/Prumo",
+    "nickolascheidt/Prumo-Angular",
+    "nickolascheidt/Prumo-DevOps",
   ]
 }
