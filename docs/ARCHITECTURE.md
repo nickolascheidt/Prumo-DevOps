@@ -18,7 +18,7 @@ containers por `docker compose`:
   `prumo_migrator` em volume novo, igual ao ambiente local.
 
 O que é gerenciado fora da máquina: **ECR** (dois repositórios, `prumo-api` e `prumo-web`,
-com lifecycle policy), **SQS** (a fila de notificações e sua DLQ) e um **IP estático**.
+com lifecycle policy) e um **IP estático**.
 
 ## Por que assim
 
@@ -33,8 +33,8 @@ Task 7 e gerado pelo `scripts/aws/gen-secrets.sh`. `Jwt__Key`, as senhas do Post
 `Seed__AdminPassword` entram por ali. **A API recusa subir sem `Jwt__Key`** — nenhum
 overlay do repo commita chave.
 
-A credencial do SDK da AWS na máquina é a chave escopada do usuário `prumo-dev-box`: o
-Lightsail não tem instance profile, então ela também vem do `.env`.
+A credencial da AWS na máquina é a chave escopada do usuário `prumo-dev-box`, que só
+puxa imagens do ECR: o Lightsail não tem instance profile.
 
 ## Estado do Terraform
 

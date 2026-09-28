@@ -4,8 +4,7 @@
 #
 #   Task 1, Passo 1  — o bucket S3 do estado (versionado, sem acesso público)
 #   Task 1, Passo 7  — `terraform init` de verdade, contra o S3
-#   Task 2, Passo 4  — apply: ECR, filas SQS e a role de deploy por OIDC (Task 4)
-#   Task 2, Passo 5  — verificação de que o redrive da fila está mesmo lá
+#   Task 2, Passo 4  — apply: ECR e a role de deploy por OIDC (Task 4)
 #
 # Plano completo: docs/superpowers/plans/2026-09-07-aws-dev-environment.md,
 # no repo da aplicação.
@@ -155,10 +154,10 @@ trap 'rm -f "$PLAN_FILE"' EXIT
 terraform plan -input=false -out="$PLAN_FILE"
 
 echo
-echo "    Sao 9 recursos, nao os 6 que o plano diz: ecr.tf (4) + sqs.tf (2) +"
-echo "    oidc.tf (3), porque a Task 4 ja esta escrita na mesma pasta."
-echo "    Custo: ECR cobra por GB armazenado (centavos) e SQS nao cobra neste"
-echo "    volume. Nada aqui e a instancia: essa e a Task 5, e ainda nao tem HCL."
+echo "    Sao 7 recursos: ecr.tf (4) + oidc.tf (3), porque a Task 4 ja esta"
+echo "    escrita na mesma pasta."
+echo "    Custo: ECR cobra por GB armazenado (centavos). Nada aqui e a"
+echo "    instancia: essa e a Task 5, e ainda nao tem HCL."
 
 if [ "$PLAN_ONLY" -eq 1 ]; then
   echo
@@ -176,25 +175,6 @@ if [ "$ASSUME_YES" -eq 0 ]; then
 fi
 
 terraform apply -input=false "$PLAN_FILE"
-
-# ------------------------------------ Task 2, Passo 5: o redrive esta mesmo la?
-step "Task 2, Passo 5 — verificar o redrive da fila"
-
-QUEUE_URL="$(terraform output -raw queue_url)"
-ATTRS="$(aws sqs get-queue-attributes \
-  --queue-url "$QUEUE_URL" --region "$REGION" \
-  --attribute-names RedrivePolicy VisibilityTimeout ReceiveMessageWaitTimeSeconds \
-  --output json)"
-
-printf '%s\n' "$ATTRS"
-
-# A RedrivePolicy vem como string JSON dentro do JSON, com as aspas escapadas.
-# O \134 e o backslash em octal: passar '\\' aqui faz o tr entender "espaco
-# escapado" e apagar so os espacos, o que deixa a asserção passando sempre.
-printf '%s' "$ATTRS" | tr -d '\134 ' | grep -q '"maxReceiveCount":5[,}]' \
-  || die "RedrivePolicy vazio ou sem maxReceiveCount=5.
-    A fila envenenada nao teria para onde ir. NAO siga para a Task 5."
-ok "redrive apontando para a DLQ, maxReceiveCount=5"
 
 # ------------------------------------------------------------------ o que vem
 step "Pronto. O que fazer agora"

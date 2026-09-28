@@ -19,7 +19,7 @@ plano, no repo da aplicação.
 - Operação: `docs/RUNBOOK.md`
 
 ## Layout
-- `terraform/aws/dev` — a stack inteira do piloto, num diretório só: ECR, SQS, a instância
+- `terraform/aws/dev` — a stack inteira do piloto, num diretório só: ECR, a instância
   Lightsail, o IP estático, a role de OIDC e o usuário de runtime.
 - `deploy/` — `docker-compose.yml`, `Caddyfile`, `db/roles.sql` e o `deploy.sh`, que sobe
   tudo por SSH a partir da **sua** máquina.

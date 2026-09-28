@@ -6,13 +6,6 @@ resource "aws_iam_user" "box" {
 }
 
 data "aws_iam_policy_document" "box" {
-  # Enfileirar notificação. É a única escrita que a máquina faz na AWS.
-  statement {
-    effect    = "Allow"
-    actions   = ["sqs:SendMessage", "sqs:GetQueueUrl", "sqs:GetQueueAttributes"]
-    resources = [aws_sqs_queue.notifications.arn]
-  }
-
   # Puxar as imagens. Só leitura, e só destes dois repositórios.
   statement {
     effect = "Allow"
@@ -43,8 +36,8 @@ resource "aws_iam_user_policy" "box" {
 #
 #     aws iam create-access-key --user-name prumo-dev-box
 #
-# O que um vazamento dessa chave dá ao atacante, na íntegra: enfileirar mensagens
-# na fila de notificação e baixar as imagens de container. Não dá para ler
+# O que um vazamento dessa chave dá ao atacante, na íntegra: baixar as imagens
+# de container. Não dá para ler
 # segredo, criar recurso nem mexer na instância. É pequeno e limitado — mas não é
 # zero, e na versão EC2 era zero. Se um dia isso incomodar, é o motivo certo para
 # voltar para EC2.

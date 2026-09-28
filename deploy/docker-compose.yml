@@ -42,15 +42,6 @@ services:
       # Ligado nesta fatia porque não há passo de migration no deploy ainda.
       # Ver a spec: é a peça a substituir quando o compute mudar.
       Database__MigrateOnStartup: "true"
-      Notifications__Provider: Sqs
-      Sqs__QueueUrl: ${SQS_QUEUE_URL}
-      Sqs__Region: ${AWS_REGION}
-      # A credencial do SDK. No Lightsail não há instance profile: estas duas vêm
-      # do .env, e são a chave escopada do usuário prumo-dev-box (Task 5).
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
-      # Sqs__ServiceUrl fica AUSENTE de propósito. Preenchida, ela apontaria o SDK
-      # para o emulador — e a guarda de NotificationConfiguration recusa o startup.
       Jwt__Key: ${JWT_KEY}
       Seed__AdminPassword: ${SEED_ADMIN_PASSWORD}
     depends_on:

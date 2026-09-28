@@ -74,6 +74,4 @@ update` é manual.
 - `Jwt__Issuer`, `Jwt__Audience`
 - `AllowedHosts` e `API_HOST`, ambos o domínio público: o nginx repassa o `Host`, e a API
   faz host filtering. Divergência aqui devolve 400 em toda chamada.
-- `Sqs__QueueUrl`, `Sqs__Region`. **`Sqs__ServiceUrl` fica ausente**: preenchida, ela
-  aponta o SDK para o emulador local, e a guarda de startup recusa.
 - `Seed__AdminPassword`
