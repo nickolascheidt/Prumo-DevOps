@@ -1,9 +1,6 @@
-# Só existe quando o DNS está no Route 53. Com route53_zone_id vazio, este
-# arquivo não gera recurso nenhum e o registro A é criado à mão no registrador —
-# ou nem existe, no caminho do sslip.io, em que o nome já resolve sozinho.
-#
-# O alvo é o IP estático do Lightsail. O plano dizia `aws_eip.app.public_ip`,
-# que é resíduo da versão EC2: não existe recurso aws_eip nesta árvore.
+# Only exists when DNS is on Route 53. With an empty route53_zone_id this file creates
+# nothing, and the A record is created by hand at the registrar — or does not exist at
+# all with sslip.io, where the name resolves by itself.
 resource "aws_route53_record" "app" {
   count = var.route53_zone_id == "" ? 0 : 1
 

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Sobe a stack na máquina do piloto. Roda da SUA máquina, não do CI: o Lightsail
-# não é alcançável por SSM Run Command, e a alternativa seria abrir a porta 22
-# para o mundo e guardar uma chave privada num secret do GitHub.
+# Brings the stack up on the host. Runs from YOUR machine, not from CI: Lightsail is not
+# reachable by SSM Run Command, and the alternative would be opening port 22 to the world
+# and storing a private key in a GitHub secret.
 #
-# Uso: ./deploy.sh          (usa as imagens :latest)
-#      ./deploy.sh <sha>    (fixa uma versão específica das duas imagens)
+# Usage: ./deploy.sh          (uses the :latest images)
+#        ./deploy.sh <sha>    (pins a specific version of both images)
 #
-# Pré-requisitos: a instância existe (Task 5), o .env está escrito nela (Task 7)
-# e ~/.ssh/prumo-dev é a chave privada gerada na Task 5, Passo 1.
+# Requires: the instance exists, /opt/prumo/.env is written on it (see
+# docs/RUNBOOK.md) and ~/.ssh/prumo-dev is the private key of the host's key pair.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -15,15 +15,14 @@ HOST="$(cd "$HERE/../terraform/aws/dev" && terraform output -raw public_ip)"
 SSH="ssh -i $HOME/.ssh/prumo-dev ec2-user@$HOST"
 TAG="${1:-latest}"
 
-echo "==> deploy de $TAG para $HOST"
+echo "==> deploying $TAG to $HOST"
 
-# Os arquivos de deploy viajam por SSH; a máquina não precisa de credencial de git.
+# The deploy files travel over SSH; the host needs no git credential.
 tar czf - -C "$HERE" docker-compose.yml Caddyfile db | $SSH "tar xzf - -C /opt/prumo"
 
-# O <<EOF SEM aspas é proposital aqui, ao contrário do .env da Task 7: $TAG
-# precisa ser expandido pela SUA máquina, e por isso \$AWS_REGION e
-# \$ECR_REGISTRY estão escapados para sobrarem para a máquina remota. Trocar isso
-# quebra de um jeito silencioso.
+# The heredoc is UNQUOTED on purpose: $TAG has to be expanded by YOUR machine, which is
+# why \$AWS_REGION and \$ECR_REGISTRY are escaped, to be left for the remote host.
+# Changing that breaks silently.
 $SSH bash -s <<EOF
 set -euo pipefail
 cd /opt/prumo
@@ -38,4 +37,4 @@ docker image prune -f
 docker compose ps
 EOF
 
-echo "==> pronto."
+echo "==> done."

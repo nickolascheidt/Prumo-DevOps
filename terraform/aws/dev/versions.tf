@@ -1,6 +1,6 @@
 terraform {
-  # `use_lockfile` (locking nativo do S3) exige 1.10. A alternativa, tabela
-  # DynamoDB, está deprecada e será removida.
+  # `use_lockfile` (native S3 locking) needs 1.10. The alternative, a DynamoDB table, is
+  # deprecated.
   required_version = ">= 1.10.0"
 
   required_providers {
@@ -10,8 +10,10 @@ terraform {
     }
   }
 
+  # Partial configuration: the bucket, prumo-tfstate-<account-id>, is passed at init
+  # (`-backend-config="bucket=..."`) by scripts/aws/bootstrap-dev.sh, which also creates
+  # it. Keeps the account ID out of the repo.
   backend "s3" {
-    bucket       = "prumo-tfstate-767397939785"
     key          = "aws/dev.tfstate"
     region       = "sa-east-1"
     encrypt      = true

@@ -1,5 +1,5 @@
-# Sem `thumbprint_list`: para GitHub, GitLab, Google e Auth0 a AWS valida pela
-# própria biblioteca de CAs raiz e ignora thumbprint configurado.
+# No `thumbprint_list`: for GitHub, GitLab, Google and Auth0, AWS validates against its
+# own library of root CAs and ignores a configured thumbprint.
 resource "aws_iam_openid_connect_provider" "github" {
   url            = "https://token.actions.githubusercontent.com"
   client_id_list = ["sts.amazonaws.com"]
@@ -21,8 +21,8 @@ data "aws_iam_policy_document" "github_assume" {
       values   = ["sts.amazonaws.com"]
     }
 
-    # StringLike, e não StringEquals: o `sub` carrega a ref do commit, então o
-    # sufixo varia a cada execução.
+    # StringLike, not StringEquals: `sub` carries the ref, so the suffix changes between
+    # runs.
     condition {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
@@ -37,7 +37,7 @@ resource "aws_iam_role" "github_deploy" {
 }
 
 data "aws_iam_policy_document" "github_deploy" {
-  # Empurrar imagem para os dois repositórios do ECR.
+  # Push images to the two ECR repositories.
   statement {
     effect = "Allow"
     actions = [
@@ -55,17 +55,15 @@ data "aws_iam_policy_document" "github_deploy" {
     ]
   }
 
-  # O token de login do ECR não aceita recurso específico.
+  # The ECR login token does not accept a specific resource.
   statement {
     effect    = "Allow"
     actions   = ["ecr:GetAuthorizationToken"]
     resources = ["*"]
   }
 
-  # E nada mais. Na versão EC2 deste plano havia aqui permissão de
-  # `ssm:SendCommand` para disparar o deploy na instância; o Lightsail não é
-  # alcançável por SSM Run Command, então o deploy vira SSH (Task 10) e esta role
-  # passa a fazer só uma coisa: empurrar imagem.
+  # And nothing else. Lightsail is not reachable by SSM Run Command, so CI cannot deploy
+  # to the host; deploys go over SSH from a workstation, and this role only pushes images.
 }
 
 resource "aws_iam_role_policy" "github_deploy" {

@@ -1,12 +1,12 @@
-# O preço de ter escolhido Lightsail: sem instance profile, a máquina precisa de
-# uma credencial gravada em disco para falar com a AWS. A defesa é dar a essa
-# credencial o menor poder possível, e é isso que este arquivo faz.
+# The price of Lightsail: with no instance profile, the host needs a credential on disk
+# to talk to AWS. The defense is to give that credential as little power as possible,
+# which is what this file does.
 resource "aws_iam_user" "box" {
   name = "${local.name}-box"
 }
 
 data "aws_iam_policy_document" "box" {
-  # Puxar as imagens. Só leitura, e só destes dois repositórios.
+  # Pull the images. Read-only, and only these two repositories.
   statement {
     effect = "Allow"
     actions = [
@@ -17,7 +17,7 @@ data "aws_iam_policy_document" "box" {
     resources = [aws_ecr_repository.api.arn, aws_ecr_repository.web.arn]
   }
 
-  # O token de login do ECR não aceita recurso específico.
+  # The ECR login token does not accept a specific resource.
   statement {
     effect    = "Allow"
     actions   = ["ecr:GetAuthorizationToken"]
@@ -31,13 +31,12 @@ resource "aws_iam_user_policy" "box" {
   policy = data.aws_iam_policy_document.box.json
 }
 
-# NÃO existe aws_iam_access_key aqui, e é de propósito: o Terraform guardaria a
-# chave secreta em texto claro no state file. Ela é criada uma vez, à mão:
+# There is NO aws_iam_access_key here, on purpose: Terraform would store the secret key in
+# plain text in the state file. It is created once, by hand:
 #
 #     aws iam create-access-key --user-name prumo-dev-box
 #
-# O que um vazamento dessa chave dá ao atacante, na íntegra: baixar as imagens
-# de container. Não dá para ler
-# segredo, criar recurso nem mexer na instância. É pequeno e limitado — mas não é
-# zero, e na versão EC2 era zero. Se um dia isso incomodar, é o motivo certo para
-# voltar para EC2.
+# What a leak of that key gives an attacker, in full: pulling the container images. It
+# cannot read secrets, create resources or touch the instance. Small and bounded — but not
+# zero, as it would be with an EC2 instance profile. If that ever matters, it is the right
+# reason to move to EC2.

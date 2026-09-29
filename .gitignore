@@ -8,7 +8,7 @@ crash.log
 # Module-level lock files are not committed (root configs pin versions instead)
 terraform/modules/**/.terraform.lock.hcl
 
-# Segredos do deploy: o .env mora na máquina e no gerenciador de senhas, nunca aqui
+# Deploy secrets: the .env lives on the host and in a password manager, never here
 .env
 deploy/.env
 

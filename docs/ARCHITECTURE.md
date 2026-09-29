@@ -1,47 +1,58 @@
-# Arquitetura
+# Architecture
 
-## A forma
+## The shape
 
-**Uma máquina só.** Uma instância Lightsail de 2 GB em `sa-east-1` roda os quatro
-containers por `docker compose`:
+**One machine.** A 2 GB Lightsail instance in `sa-east-1` runs four containers with
+`docker compose`:
 
-- **Caddy** — termina o TLS e é o único que publica porta para o mundo (80 e 443). Obtém e
-  renova o certificado sozinho.
-- **nginx** (imagem do Angular) — serve a SPA e faz proxy de `/api` para a API, na mesma
-  origem, o que dispensa CORS. Escuta em **8080**, não em 80; o Caddy aponta para lá.
-- **API** (.NET) — porta 8080, **não publicada** fora da rede do compose. Roda com
+- **Caddy** — terminates TLS and is the only container that publishes ports (80 and 443).
+  It obtains and renews its certificate by itself.
+- **nginx** (the Angular image) — serves the SPA and proxies `/api` to the API on the same
+  origin, so there is no CORS to configure. It listens on **8080**, which is where Caddy
+  points.
+- **API** (.NET) — port 8080, **not published** outside the compose network. Runs with
   `ASPNETCORE_ENVIRONMENT=Production`.
-- **Postgres 17** — no mesmo host, com volume. `db/roles.sql` cria `prumo_app` e
-  `prumo_migrator` em volume novo, igual ao ambiente local.
+- **PostgreSQL 17** — on the same host, with a volume. `db/roles.sql` creates `prumo_app`
+  (DML only) and `prumo_migrator` on a new volume, the same as in local development.
 
-O que é gerenciado fora da máquina: **ECR** (dois repositórios, `prumo-api` e `prumo-web`,
-com lifecycle policy) e um **IP estático**.
+Managed outside the machine: **ECR** (two repositories, `prumo-api` and `prumo-web`, with a
+lifecycle policy that keeps the last 10 images) and a **static IP**.
 
-## Por que assim
+## Why this shape
 
-Container Apps escalava a zero e cobrava frio; aqui a conta é fixa e pequena (~US$ 14/mês),
-e o Postgres no mesmo host evita o piso de preço de um RDS. É o desenho certo para um
-piloto que precisa ficar de pé e ser mostrado, não para escala.
+The Azure version ran on Container Apps, which scales to zero and charges for cold starts.
+Here the bill is fixed and small (about US$ 14/month), and PostgreSQL on the same host
+avoids the price floor of a managed database. It is the right shape for a pilot that has
+to stay up and be shown, not for scale. What it gives up, deliberately:
 
-## Segredos
+- **No high availability.** One instance; recovery is a daily snapshot (seven kept).
+- **SSH instead of SSM.** Lightsail is not reachable by SSM Run Command, so deploys go
+  over SSH from a workstation. Port 22 is open only to `ssh_allowed_cidr`, which has no
+  default, so Terraform asks instead of silently opening it to the world.
+- **A key on disk.** Lightsail has no instance profile, so the host pulls images with the
+  access key of a dedicated IAM user whose only right is reading these two ECR
+  repositories. The key is created by hand, never by Terraform, so it never lands in the
+  state file.
 
-Não há Key Vault nem Secrets Manager: o `.env` na máquina é a fonte, escrito uma vez pela
-Task 7 e gerado pelo `scripts/aws/gen-secrets.sh`. `Jwt__Key`, as senhas do Postgres e a
-`Seed__AdminPassword` entram por ali. **A API recusa subir sem `Jwt__Key`** — nenhum
-overlay do repo commita chave.
+## Secrets
 
-A credencial da AWS na máquina é a chave escopada do usuário `prumo-dev-box`, que só
-puxa imagens do ECR: o Lightsail não tem instance profile.
+There is no Key Vault or Secrets Manager: the `.env` on the machine is the source, written
+once from `deploy/.env.example` and `scripts/aws/gen-secrets.sh`. The JWT key, the database
+passwords and the seeded admin password come from there. **The API refuses to start
+without `Jwt__Key`** — no configuration overlay in the application repo commits one.
 
-## Estado do Terraform
+## CI/CD
 
-Backend S3, bucket `prumo-tfstate-767397939785`, chave `aws/dev.tfstate`, região
-`sa-east-1`, com locking nativo (`use_lockfile`, que exige Terraform >= 1.10). **O bucket
-ainda não existe** — criá-lo é o Passo 1 da Task 1.
+- The application repos build their images and push them to ECR, assuming
+  `github_deploy_role_arn` through GitHub OIDC. The role can push to the two repositories
+  and nothing else. See [CONTRACT.md](CONTRACT.md).
+- This repo's `infra-check` workflow runs `terraform fmt -check` and
+  `terraform init -backend=false && terraform validate` on pull requests, with no
+  credentials.
 
-## Antes disto
+## Terraform state
 
-A stack viveu na Azure (Container Apps, ACR, Key Vault, PostgreSQL Flexible Server) e
-funcionou ponta a ponta. A árvore `azurerm` saiu do repo em 2026-09-16; o código daquela
-época continua no histórico do git. O
-`rg-saasbase-tfstate` continua de pé na Azure, agora sem código que o gerencie.
+S3 backend with native locking (`use_lockfile`, Terraform 1.10+). The bucket is
+`prumo-tfstate-<account-id>`, versioned and with public access blocked; it is created by
+`scripts/aws/bootstrap-dev.sh` and passed to `terraform init` as partial backend
+configuration, so no account ID is committed.

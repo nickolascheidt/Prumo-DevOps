@@ -1,8 +1,8 @@
-# A metade pública da chave gerada na Task 5, Passo 1. A privada nunca passa pelo
-# Terraform e portanto nunca entra no state file.
+# The public half of the host's key pair. The private half never goes through Terraform,
+# so it never lands in the state file.
 #
-# pathexpand(), e não file("~/...") direto: o file() NÃO expande o til — ele
-# procuraria um diretório chamado "~" e falharia no apply.
+# pathexpand(), not file("~/...") directly: file() does NOT expand the tilde — it would
+# look for a directory named "~" and fail at apply.
 resource "aws_lightsail_key_pair" "app" {
   name       = local.name
   public_key = file(pathexpand(var.ssh_public_key_path))
@@ -17,11 +17,9 @@ resource "aws_lightsail_instance" "app" {
 
   user_data = file("${path.module}/user-data.sh")
 
-  # O backup inteiro, no lugar da role + policy de DLM da versão EC2. O Lightsail
-  # guarda os 7 snapshots automáticos mais recentes e apaga o resto sozinho.
-  # O horário é UTC e precisa ser hora cheia: 06:00 UTC = 03:00 em Brasília.
-  # O atributo é `snapshot_time`. O plano dizia `snapshot_time_of_day`, que não
-  # existe no provider — o `terraform validate` pegou.
+  # The whole backup story: Lightsail keeps the 7 most recent automatic snapshots and
+  # deletes the rest by itself. The time is UTC and must be a whole hour:
+  # 06:00 UTC = 03:00 in Brasília.
   add_on {
     type          = "AutoSnapshot"
     snapshot_time = "06:00"
@@ -31,8 +29,8 @@ resource "aws_lightsail_instance" "app" {
   tags = { Name = local.name }
 }
 
-# IP fixo: sem ele o endereço muda a cada recriação, e com ele mudam o nome
-# sslip.io e o certificado do Caddy.
+# A fixed IP: without it the address changes on every re-creation, and with it the
+# sslip.io name and Caddy's certificate.
 resource "aws_lightsail_static_ip" "app" {
   name = local.name
 }
@@ -42,8 +40,8 @@ resource "aws_lightsail_static_ip_attachment" "app" {
   instance_name  = aws_lightsail_instance.app.name
 }
 
-# O Lightsail abre 22 e 80 por padrão. Isto substitui a regra inteira: 80 e 443
-# para todo mundo, 22 só do seu IP.
+# Lightsail opens 22 and 80 by default. This replaces the whole rule set: 80 and 443 for
+# everyone, 22 only from ssh_allowed_cidr.
 resource "aws_lightsail_instance_public_ports" "app" {
   instance_name = aws_lightsail_instance.app.name
 

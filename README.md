@@ -1,34 +1,44 @@
-# Prumo-DevOps
+# Prumo — DevOps
 
-Infraestrutura e deploy do Prumo: Terraform para a AWS e GitHub Actions para construir as
-imagens da API .NET e da SPA Angular.
+[![infra-check](https://github.com/nickolascheidt/Prumo-DevOps/actions/workflows/infra-check.yml/badge.svg)](https://github.com/nickolascheidt/Prumo-DevOps/actions/workflows/infra-check.yml)
 
-O alvo é o **piloto**: uma instância Lightsail de 2 GB em `sa-east-1` rodando
-`docker compose` — Caddy (TLS), o nginx do Angular, a API e o Postgres — com snapshot
-diário, por ~US$ 14/mês. Não é ambiente descartável; é a versão que vai à frente de
-cliente.
+*[Leia em português](README.pt-BR.md)*
 
-**Nada está aplicado. Nenhum recurso existe na AWS. Custo US$ 0,00.** O que falta é
-trabalho de conta, não de código.
+Infrastructure and deployment for [Prumo](https://github.com/nickolascheidt/Prumo), a
+multi-tenant ERP (API in .NET, SPA in [Angular](https://github.com/nickolascheidt/Prumo-Angular)):
+Terraform for AWS, a Docker Compose stack for the host, and the scripts that tie them
+together.
 
-- Arquitetura: `docs/ARCHITECTURE.md`
-- Contrato com os repos de aplicação: `docs/CONTRACT.md`
-- Operação: `docs/RUNBOOK.md`
+**Status: designed and validated, never applied.** Every Terraform file passes
+`fmt`/`validate` against the real provider (the `infra-check` workflow runs both on pull
+requests), but the project stopped before anything was created in an AWS account. This
+repo is the design, kept as a portfolio piece.
+
+## The design in one paragraph
+
+One 2 GB Lightsail instance in `sa-east-1` runs four containers with `docker compose`:
+Caddy (TLS), the Angular nginx, the API and PostgreSQL 17, with daily snapshots, for about
+US$ 14/month. Images live in ECR, pushed by GitHub Actions through an OIDC role (no stored
+AWS keys). Deploys are `deploy/deploy.sh` over SSH from a workstation. See
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the reasoning and the trade-offs.
 
 ## Layout
-- `terraform/aws/dev` — a stack inteira do piloto, num diretório só: ECR, a instância
-  Lightsail, o IP estático, a role de OIDC e o usuário de runtime.
-- `deploy/` — `docker-compose.yml`, `Caddyfile`, `db/roles.sql` e o `deploy.sh`, que sobe
-  tudo por SSH a partir da **sua** máquina.
-- `scripts/aws` — `bootstrap-dev.sh` (tasks 1 e 2) e `gen-secrets.sh` (task 3).
-- `.github/workflows` — `infra-check`, que roda `fmt`/`validate` offline em PR.
 
-## História
+| Path | What it is |
+|---|---|
+| `terraform/aws/dev` | The whole stack in one root: ECR, the Lightsail instance, static IP, firewall, OIDC deploy role, a runtime IAM user, an optional Route 53 record |
+| `deploy/` | `docker-compose.yml`, `Caddyfile`, `db/roles.sql`, `.env.example` and `deploy.sh` |
+| `scripts/aws` | `bootstrap-dev.sh` (state bucket, init, plan, apply) and `gen-secrets.sh` |
+| `.github/workflows` | `infra-check`: offline `terraform fmt` and `validate` on pull requests |
+| `docs/` | [Architecture](docs/ARCHITECTURE.md), [runbook](docs/RUNBOOK.md), [contract with the app repos](docs/CONTRACT.md) |
 
-A infraestrutura viveu na Azure — Container Apps, ACR, Key Vault, PostgreSQL Flexible
-Server — e funcionou ponta a ponta antes de ser derrubada para US$ 0. **A árvore `azurerm`
-foi removida em 2026-09-16**, junto com os workflows e os scripts de `az`. O código daquela
-época continua no histórico do git.
+## History
 
-O `rg-saasbase-tfstate` **ainda existe na Azure**, custando centavos, e agora sem código
-que o gerencie: derrubar é trabalho manual no portal, quando quiser.
+The first version ran on Azure — Container Apps, ACR, Key Vault, PostgreSQL Flexible
+Server — and worked end to end before being torn down. It moved to this AWS design to
+trade scale-to-zero pricing for a small fixed bill; the Azure Terraform is still in the git
+history.
+
+## License
+
+[MIT](LICENSE)

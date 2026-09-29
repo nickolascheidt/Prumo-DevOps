@@ -1,40 +1,33 @@
-# Contrato: repos de aplicação → este repo
+# Contract: application repos → this repo
 
-Cada repo de aplicação constrói **uma** imagem e a empurra para o ECR, marcada com o SHA
-do commit e com `latest`. **E para por aí.**
+Each application repo builds **one** image and pushes it to ECR, tagged with the commit SHA
+and with `latest`. **That is where it stops**: deploying is `deploy/deploy.sh` in this
+repo, run from a workstation over SSH.
 
-Na era Azure havia um `repository_dispatch` que disparava o deploy automático; **não há
-mais**. O deploy do piloto é `deploy/deploy.sh`, rodado da máquina de quem publica, por
-SSH. O motivo está no cabeçalho do script: o Lightsail não é alcançável por SSM Run
-Command, e a alternativa seria abrir a porta 22 para o mundo e guardar uma chave privada
-num secret do GitHub.
+## Image names
 
-## Nomes de imagem
+- API: `<ecr-registry>/prumo-api:<git-sha>` (and `:latest`)
+- Frontend: `<ecr-registry>/prumo-web:<git-sha>` (and `:latest`)
 
-- API: `<ecr-registry>/prumo-api:<git-sha>` (e `:latest`)
-- Frontend: `<ecr-registry>/prumo-web:<git-sha>` (e `:latest`)
-
-O registry sai de `terraform output -raw ecr_registry` e tem a forma
+The registry comes from `terraform output -raw ecr_registry` and looks like
 `<account-id>.dkr.ecr.sa-east-1.amazonaws.com`.
 
-## Secrets que os repos de aplicação precisam
+## Secrets the application repos need
 
-Dois, os mesmos nos dois repos, ambos saindo de `terraform output` aqui (Task 10, Passo 1):
+Two, the same in both repos, both from `terraform output` here:
 
-- `AWS_DEPLOY_ROLE_ARN` — a role assumida por OIDC, de `github_deploy_role_arn`. Não há
-  chave de acesso guardada em secret.
-- `ECR_REGISTRY` — de `ecr_registry`.
+- `AWS_DEPLOY_ROLE_ARN` — the role assumed through OIDC, from `github_deploy_role_arn`.
+  No access key is stored in a secret.
+- `ECR_REGISTRY` — from `ecr_registry`.
 
-## Estado dos gatilhos
+## Triggers
 
-Os dois workflows estão em **`workflow_dispatch`** de propósito: sem ECR e sem secrets,
-um gatilho por `push` deixaria a aba Actions vermelha a cada commit. Trocar para
+Both image workflows (`build-and-deploy.yml` in the application repos) run on
+**`workflow_dispatch`** on purpose: without the ECR and the secrets, a push trigger would
+paint every commit red. Once the stack exists, switch them to:
 
 ```yaml
 on:
   push:
     branches: [main]
 ```
-
-é o Passo final da Task 10, depois que o `terraform apply` existir e os secrets estiverem
-postos.

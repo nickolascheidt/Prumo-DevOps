@@ -2,8 +2,8 @@ resource "aws_ecr_repository" "api" {
   name                 = "${var.project}-api"
   image_tag_mutability = "MUTABLE"
 
-  # Sem isto o `terraform destroy` FALHA num repositório que tem imagem dentro, e
-  # este ambiente existe para ser destruído e recriado.
+  # Without this `terraform destroy` FAILS on a repository that has images, and this
+  # environment is meant to be destroyed and re-created.
   force_delete = true
 
   image_scanning_configuration {
@@ -21,13 +21,13 @@ resource "aws_ecr_repository" "web" {
   }
 }
 
-# Sem isto o ECR acumula uma imagem por commit para sempre, e você paga por elas.
+# Without this ECR keeps one image per commit forever, and you pay for them.
 resource "aws_ecr_lifecycle_policy" "api" {
   repository = aws_ecr_repository.api.name
   policy = jsonencode({
     rules = [{
       rulePriority = 1
-      description  = "Guardar as 10 imagens mais recentes"
+      description  = "Keep the 10 most recent images"
       selection = {
         tagStatus   = "any"
         countType   = "imageCountMoreThan"

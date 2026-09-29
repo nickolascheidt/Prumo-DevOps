@@ -9,8 +9,8 @@ services:
       DOMAIN: ${DOMAIN}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      # Preserva o certificado entre subidas. Destruir este volume e reaplicar
-      # muitas vezes no mesmo dia esbarra no limite de emissão do Let's Encrypt.
+      # Keeps the certificate across restarts. Destroying this volume and re-applying
+      # many times in one day runs into Let's Encrypt's issuance limit.
       - caddy-data:/data
       - caddy-config:/config
     depends_on:
@@ -20,11 +20,11 @@ services:
     image: ${ECR_REGISTRY}/prumo-web:${WEB_TAG}
     restart: unless-stopped
     environment:
-      # Lidos pelo envsubst do entrypoint do nginx, no `proxy_pass ${API_URL};` e
-      # no `proxy_set_header Host ${API_HOST};`. O segundo precisa ser o domínio
-      # público: a API roda com AllowedHosts=${DOMAIN} (abaixo) e o host filtering
-      # do ASP.NET devolve 400 para qualquer outro Host. Sem ele, valia o default
-      # da imagem (localhost:5201) e toda chamada à API era recusada.
+      # Read by the nginx entrypoint's envsubst, in `proxy_pass ${API_URL};` and
+      # `proxy_set_header Host ${API_HOST};`. The second must be the public domain: the
+      # API runs with AllowedHosts=${DOMAIN} (below) and ASP.NET host filtering returns
+      # 400 for any other Host. Without it the image default (localhost:5201) applied and
+      # every API call was refused.
       API_URL: http://api:8080
       API_HOST: ${DOMAIN}
 
@@ -37,10 +37,10 @@ services:
       AllowedHosts: ${DOMAIN}
       App__BaseUrl: https://${DOMAIN}
       Cors__AllowedOrigins__0: https://${DOMAIN}
-      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=SaaSBasePlatformDb;Username=prumo_app;Password=${PRUMO_APP_PASSWORD}
-      ConnectionStrings__MigratorConnection: Host=postgres;Port=5432;Database=SaaSBasePlatformDb;Username=prumo_migrator;Password=${PRUMO_MIGRATOR_PASSWORD}
-      # Ligado nesta fatia porque não há passo de migration no deploy ainda.
-      # Ver a spec: é a peça a substituir quando o compute mudar.
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=prumo;Username=prumo_app;Password=${PRUMO_APP_PASSWORD}
+      ConnectionStrings__MigratorConnection: Host=postgres;Port=5432;Database=prumo;Username=prumo_migrator;Password=${PRUMO_MIGRATOR_PASSWORD}
+      # On because the deploy has no migration step. It runs over the migrator
+      # connection, never the app's. The piece to replace if the compute changes.
       Database__MigrateOnStartup: "true"
       Jwt__Key: ${JWT_KEY}
       Seed__AdminPassword: ${SEED_ADMIN_PASSWORD}
@@ -54,12 +54,12 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: SaaSBasePlatformDb
+      POSTGRES_DB: prumo
       PRUMO_MIGRATOR_PASSWORD: ${PRUMO_MIGRATOR_PASSWORD}
       PRUMO_APP_PASSWORD: ${PRUMO_APP_PASSWORD}
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      # Só roda em volume novo, igual ao local.
+      # Only runs on a new volume, as in local development.
       - ./db/roles.sql:/docker-entrypoint-initdb.d/10-roles.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]

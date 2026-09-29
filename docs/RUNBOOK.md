@@ -1,74 +1,68 @@
 # Runbook
 
-> **Nada disto foi executado ainda.** Nenhum recurso existe na AWS, o custo é US$ 0,00.
+> This was never executed against a real account. It is the procedure the design implies.
 
-## O portão: Task 0
+## Before anything costs money
 
-Trabalho humano no console da AWS, conta `767397939785`, e **nada que gasta dinheiro
-começa antes**:
+1. Work as an IAM user with console access and MFA, **not the root account**.
+   `scripts/aws/bootstrap-dev.sh` refuses to run with root credentials: the state bucket
+   would be born owned by root.
+2. Create a **budget alarm** (for example US$ 40/month, alerts at 50% and 100%). With no
+   credits and no free tier, it is the only warning between a mistake and a bill.
+3. `aws configure` with that user's key, region `sa-east-1`.
+4. An SSH key pair for the host: `ssh-keygen -t ed25519 -f ~/.ssh/prumo-dev`.
 
-1. Acesso ao console + MFA no usuário IAM `nickolas` (hoje ele só tem chave programática,
-   e por isso o dia a dia acontece no root).
-2. Rotacionar a chave de acesso de 448 dias e apagar a antiga.
-3. `aws configure` com a chave nova, região `sa-east-1`.
-4. **Budget alarm de US$ 40/mês, com alerta em 50% e 100%.** A conta não tem crédito
-   nenhum e o free tier expirou: esse alarme é o único aviso entre um erro e uma fatura.
-
-O portão é `aws sts get-caller-identity` devolver um ARN que **não** termine em `:root`.
-Antes disso, o bucket de estado nasceria com credencial de root — exatamente o que a
-Task 0 existe para evitar.
-
-## Bootstrap, uma vez
+## Bootstrap
 
 ```bash
-scripts/aws/bootstrap-dev.sh --plan-only   # tire a flag para aplicar
-scripts/aws/gen-secrets.sh                 # Task 3: gera o .env
+scripts/aws/bootstrap-dev.sh --plan-only   # drop the flag to apply
 ```
 
-O primeiro cobre as tasks 1 e 2 e recusa andar se a Task 0 não estiver feita; é
-idempotente. O `apply` da Task 2 cria **9** recursos, não os 6 que o plano diz — o
-`oidc.tf` da Task 4 mora na mesma árvore e sobe junto.
+It creates the state bucket (versioned, public access blocked), runs `terraform init`
+against it and plans the whole stack. It is idempotent. `ssh_allowed_cidr` defaults to your
+current public IP (`SSH_ALLOWED_CIDR` overrides it). **The apply is where the
+~US$ 14/month starts.**
 
-Criar o bucket de estado é o único passo de CLI que sobra fora do script:
-`--create-bucket-configuration LocationConstraint=sa-east-1` é obrigatório fora de
-`us-east-1`.
+Then, once:
 
-## A máquina
+1. The runtime key for the host: `aws iam create-access-key --user-name prumo-dev-box`.
+2. The `.env` on the instance: start from `deploy/.env.example`, fill it with
+   `scripts/aws/gen-secrets.sh`, the runtime key and the `terraform output` values, and
+   copy it to `/opt/prumo/.env` on the host. Keep a copy in a password manager; it is not
+   stored anywhere else.
+3. The two GitHub secrets in the application repos (see [CONTRACT.md](CONTRACT.md)), and
+   switch their image workflows from `workflow_dispatch` to `push`.
 
-`terraform apply` na Task 5 — **é aqui que os ~US$ 14/mês começam.** Depois dele, em
-ordem: o par SSH (`ssh-keygen -t ed25519 -f ~/.ssh/prumo-dev`), a chave do usuário de
-runtime (`aws iam create-access-key --user-name prumo-dev-box`), o `.env` na instância
-(Task 7, Passo 4), `ssh_allowed_cidr` apontando para o seu IP, os dois secrets do GitHub e
-a virada dos dois workflows de `workflow_dispatch` para `push`.
+Without a domain of your own, use the `sslip_domain` output (the static IP with dashes,
+for example `54-207-1-2.sslip.io`) as `DOMAIN`: it resolves by itself and Caddy gets a real
+certificate for it.
 
 ## Deploy
 
 ```bash
-deploy/deploy.sh          # imagens :latest
-deploy/deploy.sh <sha>    # fixa uma versão
+deploy/deploy.sh          # :latest images
+deploy/deploy.sh <sha>    # pin a version of both images
 ```
 
-Roda da **sua** máquina, não do CI, e precisa de `~/.ssh/prumo-dev`. Ele leva
-`docker-compose.yml`, `Caddyfile` e `db/` por SSH, ajusta as tags no `.env` da instância e
-sobe a stack.
+It copies `docker-compose.yml`, `Caddyfile` and `db/` to the host over SSH, sets the image
+tags in the host's `.env` and brings the stack up.
 
 ## Rollback
 
-`deploy/deploy.sh <sha-anterior>`. As imagens antigas continuam no ECR até a lifecycle
-policy as recolher.
+`deploy/deploy.sh <previous-sha>`. Old images stay in ECR until the lifecycle policy keeps
+only the last 10.
 
 ## Migrations
 
-O deploy **não tem passo de migration**: no piloto a API sobe com
-`Database__MigrateOnStartup=true`, o que é a peça a substituir quando o compute mudar.
-Localmente a regra continua sendo outra — a API não migra sozinha, e `dotnet ef database
-update` é manual.
+The deploy has no migration step: on the host the API starts with
+`Database__MigrateOnStartup=true`, over a separate connection with the migrator
+credential. That is the piece to replace if the compute changes. Locally the rule is the
+opposite — the API never migrates itself, and `dotnet ef database update` is manual.
 
-## Chaves de configuração que precisam bater com a API
+## Configuration that has to match the API
 
-- `ConnectionStrings__DefaultConnection` e `ConnectionStrings__MigratorConnection` (Npgsql)
-- `Jwt__Key` — **sem ela a API se recusa a subir, de propósito**
-- `Jwt__Issuer`, `Jwt__Audience`
-- `AllowedHosts` e `API_HOST`, ambos o domínio público: o nginx repassa o `Host`, e a API
-  faz host filtering. Divergência aqui devolve 400 em toda chamada.
-- `Seed__AdminPassword`
+- `ConnectionStrings__DefaultConnection` and `ConnectionStrings__MigratorConnection`
+- `Jwt__Key` — **without it the API refuses to start, on purpose**
+- `AllowedHosts` and the nginx `API_HOST`, both the public domain: nginx forwards the
+  `Host` header and the API does host filtering. A mismatch returns 400 on every call.
+- `Seed__AdminPassword` — the first sign-in
